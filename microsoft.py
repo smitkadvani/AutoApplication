@@ -1,6 +1,7 @@
 import time
 import json
 import os
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -10,15 +11,18 @@ from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
-# Constants
-MICROSOFT_CAREERS_URL = "https://jobs.careers.microsoft.com/global/en/search?q=software%20developer&lc=United%20States&d=Software%20Engineering&et=Full-Time&l=en_us&pg=1&pgSz=20&o=Relevance&flt=true"
+# Set your Telegram bot token and chat ID
+TELEGRAM_BOT_TOKEN = "7547959272:AAEiClyALIZ_lMj9SPONdSxUZcQU_DRNllE"
+TELEGRAM_CHAT_ID = "2102830578"  # Replace with your actual Telegram chat ID
+
+MICROSOFT_CAREERS_URL = "https://jobs.careers.microsoft.com/global/en/search?q=software%20developer&lc=United%20States&d=Software%20Engineering&et=Full-Time&l=en_us&pg=1&pgSz=20&o=Recent&flt=true"
 OLD_JOBS_FILE = "old_jobs.json"
 CHECK_INTERVAL = 30  # Time interval in seconds
 
 def setup_driver():
     """Initialize and return a Selenium WebDriver instance."""
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Runs browser in background
+    options.add_argument("--headless")  # Run in headless mode
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -56,7 +60,7 @@ def fetch_and_save_html():
         driver.quit()
 
 def parse_jobs_from_html():
-    """Parses job listings from the saved HTML file."""
+    """Parses job listings from the saved HTML file and extracts job IDs."""
     with open("debug_page_source.html", "r", encoding="utf-8") as f:
         html_content = f.read()
 
@@ -68,20 +72,23 @@ def parse_jobs_from_html():
         title_element = job.find("h2", class_="MZGzlrn8gfgSs8TZHhv2")
         location_element = job.find("span", string=lambda text: "United States" in text if text else False)
         date_element = job.find("span", string=lambda text: "day" in text or "Today" in text if text else False)
-        link_element = job.find("button", class_="seeDetailsLink-544")
 
-        if title_element:
-            title = title_element.text.strip()
-            location = location_element.text.strip() if location_element else "N/A"
-            posted_date = date_element.text.strip() if date_element else "N/A"
-            url = MICROSOFT_CAREERS_URL  
+        # Extract job ID from the 'aria-label' attribute of the <div> tag
+        job_div = job.find("div", {"aria-label": lambda x: x and x.startswith("Job item")})
+        if job_div:
+            job_id = job_div["aria-label"].split()[-1]  # Extract job ID
+            job_url = f"https://jobs.careers.microsoft.com/global/en/job/{job_id}"  # Construct full job URL
+            if title_element:
+                title = title_element.text.strip()
+                location = location_element.text.strip() if location_element else "N/A"
+                posted_date = date_element.text.strip() if date_element else "N/A"
 
-            jobs.append({
-                "title": title,
-                "url": url,
-                "location": location,
-                "posted_date": posted_date
-            })
+                jobs.append({
+                    "title": title,
+                    "url": job_url,
+                    "location": location,
+                    "posted_date": posted_date
+                })
 
     return jobs
 
@@ -103,27 +110,39 @@ def find_new_jobs(old_jobs, current_jobs):
     new_jobs = [job for job in current_jobs if job['title'] not in old_job_titles]
     return new_jobs
 
+def send_telegram_message(new_jobs):
+    """Sends a notification to Telegram."""
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠ Telegram bot token or chat ID missing!")
+        return
+
+    for job in new_jobs:
+        message = f"🚀 *New Microsoft Job Posted!*\n🔹 *Title:* {job['title']}\n📍 *Location:* {job['location']}\n🗓 *Posted:* {job['posted_date']}\n🔗 [View Job]({job['url']})"
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+        response = requests.post(url, json=payload)
+
+        if response.status_code == 200:
+            print(f"📢 Sent Telegram notification for: {job['title']}")
+        else:
+            print(f"⚠ Failed to send Telegram message: {response.text}")
+
 def check_for_new_jobs():
     """Main function to check for new job postings in a loop."""
     while True:
-        print("\nChecking for new job postings...")
+        print("\n🔍 Checking for new job postings...")
         fetch_and_save_html()
         current_jobs = parse_jobs_from_html()
 
-        if not current_jobs:
-            print("No job postings found.")
-        else:
-            old_jobs = load_previous_jobs()
-            new_jobs = find_new_jobs(old_jobs, current_jobs)
+        old_jobs = load_previous_jobs()
+        new_jobs = find_new_jobs(old_jobs, current_jobs)
 
-            if new_jobs:
-                print("\n🚀 New job postings found!")
-                for job in new_jobs:
-                    print(f"🔹 Title: {job['title']}")
-                    print(f"📍 Location: {job['location']}")
-                    print(f"🗓 Posted: {job['posted_date']}")
-                    print(f"🔗 URL: {job['url']}")
-                    print("-" * 40)
-                save_jobs(current_jobs)
-            else:
-                print("✅ No new jobs since last check.")ls -l
+        if new_jobs:
+            send_telegram_message(new_jobs)
+            save_jobs(current_jobs)
+
+        print(f"⏳ Waiting {CHECK_INTERVAL} seconds before next check...")
+        time.sleep(CHECK_INTERVAL)
+
+if __name__ == "__main__":
+    check_for_new_jobs()
