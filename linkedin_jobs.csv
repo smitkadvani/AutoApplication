@@ -1,0 +1,43 @@
+job_id,title,company_name,location,job_type,posted_time,applicants,description,apply_url,company_size,company_industry,company_description
+4195536875,"Senior Infrastructure Software Engineer, Deep Learning Libraries",NVIDIA,"Santa Clara, CA","['Full-time\nMatches your job preferences, job type is Full-time.']",1 hour ago,1 hour ago,"About the job
+We are now looking for a Senior Infrastructure Software Engineer for Deep Learning Libraries!
+
+NVIDIA's Deep Learning Libraries Group is seeking excellent software engineers to enable the next wave of NVIDIA’s highest performing deep learning libraries. The role spans multiple products, including cuDNN , TensorRT , and CUDA kernel libraries. The mission is to design and develop scalable, modular infrastructure that streamlines development, builds, and tests across NVIDIA’s diverse set of platforms, from Drive AGX for autonomous vehicles to DGX servers for datacenters and large language models. Join our technically diverse team of software engineers and infrastructure experts to design the systems that enable NVIDIA to stay ahead of the competition as we deliver the world's fastest deep learning platforms.
+
+What You'll Be Doing
+
+ Designing and developing software for testing and analysis of our codebases 
+ Building scalable automation for build, test, integration, and release processes for publicly distributed deep learning libraries 
+ Developing throughout the software stack, from the user experience and user interfaces down to the cluster and database layers 
+ Configuring, maintaining, and building upon deployments of industry-standard tools (e.g. Kubernetes, Jenkins, Docker, CMake, Gitlab, Jira, etc.) 
+ Develop front-end solutions using HTML, CSS, JavaScript, and related web technologies 
+ Advancing the state of the art in those industry-standard tools 
+
+What We Need To See
+
+ A Masters Degree in Computer Science or Computer Engineering or equivalent experience. 
+ 3+ years of relevant experience 
+ Strong programming skills in Python (or similar) and familiarity with C/C++ development 
+ Experience setting up, maintaining, and automating continuous integration systems (e.g. Jenkins, GitHub Actions, GitLab pipelines, Azure DevOps) 
+ Experience in HTML5, CSS, NodeJS, or React 
+ Fluency in SCM (e.g. Git, Perforce) and build systems (e.g. Make, CMake, Bazel) 
+
+Ways To Stand Out From The Crowd
+
+ Experience designing and developing automation in Jenkins with Groovy (or similar) 
+ Background with distributed systems and cluster/cloud computing, especially with Kubernetes 
+ Experience designing and developing unit and integration test frameworks 
+ Experience with mobile/embedded platforms and multiple operating systems (Ubuntu, RedHat, Windows, QNX, or similar) 
+ Track record of identifying useful new technologies and incorporating them into SW development flows 
+
+This is an opportunity to have a wide impact at NVIDIA by improving development velocity across our many AI/DL/Compute Software projects. Are you creative, driven, and autonomous? Do you love a challenge? If so, we want to hear from you!
+
+The base salary range is 148,000 USD - 287,500 USD. Your base salary will be determined based on your location, experience, and the pay of employees in similar positions.
+
+You will also be eligible for equity and benefits .  NVIDIA accepts applications on an ongoing basis. 
+
+NVIDIA is committed to fostering a diverse work environment and proud to be an equal opportunity employer. As we highly value diversity in our current and future employees, we do not discriminate (including in our hiring and promotion practices) on the basis of race, religion, color, national origin, gender, gender expression, sexual orientation, age, marital status, veteran status, disability status or any other characteristic protected by law.
+
+JR1995977",https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/US-CA-Santa-Clara/Senior-Infrastructure-Software-Engineer--Deep-Learning-Libraries_JR1995977-1?source=jobboardlinkedin,"10,001+ employees","Computer Hardware Manufacturing 10,001+ employees 39,798 on LinkedIn","Since its founding in 1993, NVIDIA (NASDAQ: NVDA) has been a pioneer in accelerated computing. The company’s invention of the GPU in 1999 sparked the growth of the PC gaming market, redefined computer graphics, ignited the era of modern AI and is fueling the creation of the metaverse. NVIDIA is now a full-stack computing company with data-center-scale offerings that are reshaping industry.
+…
+show more"
