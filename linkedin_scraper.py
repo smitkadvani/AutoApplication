@@ -11,6 +11,7 @@ import os
 from dotenv import load_dotenv
 import random
 import re
+from telegram_sender import TelegramBot, format_job_message
 
 # Telegram credentials
 TELEGRAM_BOT_TOKEN = "7547959272:AAEiClyALIZ_lMj9SPONdSxUZcQU_DRNllE"
@@ -49,6 +50,9 @@ class LinkedInJobScraper:
         
         # Load previously notified job IDs (if any)
         self.load_notified_job_ids()
+
+        # Initialize Telegram bot
+        self.telegram_bot = TelegramBot("your_bot_token_here")
 
     def load_notified_job_ids(self):
         """Load job IDs from file so that we don't resend notifications for the same jobs."""
@@ -162,7 +166,7 @@ class LinkedInJobScraper:
         self.wait.until(EC.presence_of_element_located((By.ID, "username"))).send_keys(email)
         self.wait.until(EC.presence_of_element_located((By.ID, "password"))).send_keys(password)
         self.driver.find_element(By.CSS_SELECTOR, "[type=submit]").click()
-        time.sleep(10)  # Adjust delay as needed after login
+        time.sleep(20)  # Adjust delay as needed after login
         print("Logged in successfully.")
 
     def get_job_description(self, job_card):
@@ -449,21 +453,49 @@ class LinkedInJobScraper:
         print(f"Added {company_name} to block list")
 
     def check_job_match(self, job_title, company_name):
+        """Check if job matches and send notification if it does"""
         if not job_title or not company_name:
             return False
+        
+        # Convert to lowercase for comparison
         job_title = job_title.lower()
         company_name = company_name.lower()
+        
+        # Check if company matches
         company_match = company_name in self.interested_companies
+        
+        # Check if any role word matches
         role_words = set(job_title.split())
         role_match = any(
             any(role_word in job_word for job_word in role_words)
             for role_word in self.interested_roles
         )
-        if company_match:
-            print(f"\nFOUND MATCH!")
+        
+        if company_match and role_match:
+            # Get apply URL when there's a match
+            apply_url = self.get_apply_url()
+            
+            # Prepare job details
+            job_details = {
+                'company_name': company_name,
+                'title': job_title,
+                'apply_url': apply_url
+            }
+            
+            # Format and send message
+            message = format_job_message(job_details)
+            self.telegram_bot.broadcast_message(message)
+            
+            print("\nFOUND MATCH!")
             print(f"Company: {company_name}")
             print(f"Role: {job_title}")
+            if apply_url:
+                print(f"Apply URL: {apply_url}")
+            else:
+                print("Apply URL not found")
+            print("-" * 50)
             return True
+        
         return False
 
 def main():
