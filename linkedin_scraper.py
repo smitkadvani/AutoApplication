@@ -15,7 +15,7 @@ from telegram_sender import TelegramBot, format_job_message
 
 # Telegram credentials
 TELEGRAM_BOT_TOKEN = "7547959272:AAEiClyALIZ_lMj9SPONdSxUZcQU_DRNllE"
-TELEGRAM_CHAT_ID = "2102830578"
+TELEGRAM_CHAT_ID = ["2102830578", "1678159044"]
 
 class LinkedInJobScraper:
     def __init__(self):
@@ -385,13 +385,14 @@ class LinkedInJobScraper:
             f"🔗 [Apply Here]({job['apply_url']})"
         )
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            print(f"📢 Sent Telegram notification for: {job['title']}")
-            self.save_notified_job_id(job_id)
-        else:
-            print(f"⚠ Failed to send Telegram message: {response.text}")
+        for chat_id in TELEGRAM_CHAT_ID:
+            payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+            response = requests.post(url, json=payload)
+            if response.status_code == 200:
+                print(f"📢 Sent Telegram notification for: {job['title']}")
+                self.save_notified_job_id(job_id)
+            else:
+                print(f"⚠ Failed to send Telegram message: {response.text}")
 
     def save_company_info(self, company_name, company_details):
         try:

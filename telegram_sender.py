@@ -78,12 +78,20 @@ class TelegramBot:
 
 def format_job_message(job_details: Dict) -> str:
     """Format job details into a nice message"""
+    apply_url = job_details.get('apply_url', 'N/A')
+    
+    # Check if it's an Easy Apply job
+    if 'Easy Apply' in apply_url:
+        apply_text = "💼 LinkedIn Easy Apply Job"
+    else:
+        apply_text = f"🔗 <a href='{apply_url}'>Apply Here</a>"
+    
     return f"""
 🔍 <b>New Job Match Found!</b>
 
 🏢 <b>Company:</b> {job_details.get('company_name', 'N/A')}
 💼 <b>Role:</b> {job_details.get('title', 'N/A')}
-🔗 <b>Apply:</b> {job_details.get('apply_url', 'N/A')}
+{apply_text}
 
 #JobAlert #NewOpportunity
 """
