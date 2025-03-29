@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import random
 import re
 from telegram_sender import TelegramBot, format_job_message
+from typing import Dict
 
 # Telegram credentials
 TELEGRAM_BOT_TOKEN = "7547959272:AAEiClyALIZ_lMj9SPONdSxUZcQU_DRNllE"
@@ -69,15 +70,29 @@ class LinkedInJobScraper:
         self.notified_job_ids.add(job_id)
 
     def safe_click(self, element):
-        """Attempt to click an element safely using standard click, fallback to JS click."""
-        try:
-            element.click()
-        except ElementClickInterceptedException as e:
-            print(f"Click intercepted: {str(e)}. Trying JS click.")
-            self.driver.execute_script("arguments[0].click();", element)
-        except Exception as e:
-            print(f"Error clicking element: {str(e)}. Trying JS click.")
-            self.driver.execute_script("arguments[0].click();", element)
+        """Safely click an element with retry logic"""
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                # Scroll element into view
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
+                time.sleep(0.5)
+                
+                # Try regular click first
+                try:
+                    element.click()
+                    return True
+                except:
+                    # If regular click fails, try JavaScript click
+                    self.driver.execute_script("arguments[0].click();", element)
+                    return True
+                
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    print(f"Failed to click element after {max_attempts} attempts: {str(e)}")
+                    return False
+                time.sleep(1)
+        return False
 
     def close_sign_in_modal(self):
         """Attempt to close the sign-in modal if it appears."""
@@ -247,7 +262,7 @@ class LinkedInJobScraper:
             self.random_delay()
             details['description'] = self.get_job_description(job_card)
             details['company_details'] = company_details
-            details['apply_url'] = self.get_apply_url()
+            details['apply_url'] = self.get_apply_url(company_name)
             
             # Send notification if job matches criteria
             if self.check_job_match(details['title'], details['company_name']):
@@ -262,36 +277,57 @@ class LinkedInJobScraper:
             print(f"Error getting job details: {str(e)}")
             return None
 
-    def get_apply_url(self):
-        """Extract the apply URL from the job posting"""
+    def get_apply_url(self, company_name):
+        """Extract the apply URL by clicking company name if needed"""
         try:
-            # First try to get the current job URL (for LinkedIn internal jobs)
-            current_url = self.driver.current_url
-            
-            # Try to find the apply button
-            apply_button = WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((
-                    By.CSS_SELECTOR, 
-                    "button.jobs-apply-button"
-                ))
-            )
-            
-            # If it's an external URL, get it from the button
-            if apply_button.get_attribute('data-job-url'):
-                return apply_button.get_attribute('data-job-url')
-            
-            # If no external URL, return the LinkedIn job URL
-            if 'jobs/view' in current_url:
-                return current_url
-            
-            return None
-            
+            # First check if it's an Easy Apply button
+            try:
+                apply_button = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.CSS_SELECTOR, 
+                        "button.jobs-apply-button"
+                    ))
+                )
+                
+                # If it's an external URL, get it from the button
+                if apply_button.get_attribute('data-job-url'):
+                    return apply_button.get_attribute('data-job-url')
+                
+                # If no data-job-url, it's likely an Easy Apply
+                return self.driver.current_url
+                
+            except:
+                # If no apply button found, try clicking company name
+                try:
+                    # Find and click company name link
+                    company_link = WebDriverWait(self.driver, 5).until(
+                        EC.presence_of_element_located((
+                            By.CSS_SELECTOR,
+                            f"a[href*='/company/'][aria-label*='{company_name}']"
+                        ))
+                    )
+                    company_link.click()
+                    time.sleep(2)  # Wait for new page to load
+                    
+                    # Try to find the careers/jobs link
+                    careers_links = self.driver.find_elements(
+                        By.CSS_SELECTOR,
+                        "a[href*='careers'], a[href*='jobs'], a[href*='work-with-us']"
+                    )
+                    
+                    if careers_links:
+                        return careers_links[0].get_attribute('href')
+                    
+                    # If no careers link, return company page URL
+                    return self.driver.current_url
+                    
+                except Exception as e:
+                    print(f"Error finding company careers page: {str(e)}")
+                    return self.driver.current_url
+                
         except Exception as e:
             print(f"Error getting apply URL: {str(e)}")
-            # If we can't get the apply URL, return the current job URL if it's a job page
-            if 'jobs/view' in self.driver.current_url:
-                return self.driver.current_url
-            return None
+            return self.driver.current_url
 
     def safe_get_text(self, selector, parent=None):
         try:
@@ -346,7 +382,8 @@ class LinkedInJobScraper:
         message = (
             f"🚀 *New Job Matched!*\n"
             f"🔹 *Title:* {job['title']}\n"
-            f"📍 *Location:* {job['location']}\n"
+            f"📍 *Comapny Name:* {job['company_name']}\n"
+             f"📍*Location:* {job['location']}\n"
             f"🗓 *Posted:* {job['posted_time']}\n"
             f"🔗 [Apply Here]({job['apply_url']})"
         )
@@ -472,32 +509,60 @@ class LinkedInJobScraper:
             for role_word in self.interested_roles
         )
         
-        if company_match and role_match:
+        if True or company_match or role_match:
             # Get apply URL when there's a match
-            apply_url = self.get_apply_url()
+            apply_url = self.get_apply_url(company_name)
+            
+            # Determine if it's Easy Apply
+            is_easy_apply = 'jobs/view' in (apply_url or '')
             
             # Prepare job details
             job_details = {
                 'company_name': company_name,
                 'title': job_title,
-                'apply_url': apply_url or 'Not available'
+                'apply_url': apply_url,
+                'is_easy_apply': is_easy_apply
             }
             
             # Format and send message
-            message = format_job_message(job_details)
+            message = self.format_job_message(job_details)
             self.telegram_bot.broadcast_message(message)
             
             print("\nFOUND MATCH!")
             print(f"Company: {company_name}")
             print(f"Role: {job_title}")
-            if apply_url:
-                print(f"Apply URL: {apply_url}")
-            else:
-                print("Apply URL not found")
+            print(f"Apply Type: {'Easy Apply' if is_easy_apply else 'External'}")
+            print(f"Apply URL: {apply_url or 'Not available'}")
             print("-" * 50)
             return True
         
         return False
+
+    def format_job_message(self, job_details: Dict) -> str:
+        """Format job details into a nice message"""
+        is_easy_apply = job_details.get('is_easy_apply', False)
+        apply_url = job_details.get('apply_url', 'N/A')
+        
+        if is_easy_apply:
+            apply_section = (
+                "💼 <b>Application:</b> LinkedIn Easy Apply\n"
+                f"🔗 <b>Job Link:</b> {apply_url}"
+            )
+        else:
+            apply_section = (
+                "💼 <b>Application:</b> External\n"
+                f"🔗 <b>Apply Here:</b> {apply_url}"
+            )
+        
+        return f"""
+🔍 <b>New Job Match Found!</b>
+
+🏢 <b>Company:</b> {job_details.get('company_name', 'N/A')}
+👨‍💻 <b>Role:</b> {job_details.get('title', 'N/A')}
+{apply_section}
+
+#JobAlert #NewOpportunity
+"""
 
 def main():
     load_dotenv()
