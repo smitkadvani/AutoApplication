@@ -506,7 +506,7 @@ class LinkedInJobScraper:
             for role_word in self.interested_roles
         )
         
-        if company_match and role_match:
+        if company_match or role_match or True:
             # Get apply URL when there's a match
             apply_url = self.get_apply_url()
             
