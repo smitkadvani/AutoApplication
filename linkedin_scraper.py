@@ -263,35 +263,69 @@ class LinkedInJobScraper:
             return None
 
     def get_apply_url(self):
-        """Attempt to fetch the URL for the job apply button."""
-        apply_url = ""
+        """Extract the apply URL or job ID from the posting"""
         try:
-            apply_button = self.driver.find_element(By.CSS_SELECTOR, "*[data-live-test-job-apply-button]")
-            original_handle = self.driver.current_window_handle
-            original_url = self.driver.current_url
-            original_handles = self.driver.window_handles
-
-            self.safe_click(apply_button)
-            time.sleep(3)
-            new_handles = self.driver.window_handles
-            if len(new_handles) > len(original_handles):
-                new_handle = [h for h in new_handles if h not in original_handles][0]
-                self.driver.switch_to.window(new_handle)
-                time.sleep(2)
-                apply_url = self.driver.current_url
-                self.driver.close()
-                self.driver.switch_to.window(original_handle)
-            else:
-                current_url = self.driver.current_url
-                if current_url != original_url:
-                    apply_url = current_url
-                    self.driver.back()
-                else:
-                    apply_url = ""
+            # First try to get the job ID from the current URL
+            current_url = self.driver.current_url
+            if 'jobs/view' in current_url:
+                # Extract job ID using regex
+                import re
+                job_id_match = re.search(r'jobs/view/(\d+)', current_url)
+                if job_id_match:
+                    job_id = job_id_match.group(1)
+                    # Return LinkedIn job URL format
+                    return f"https://www.linkedin.com/jobs/view/{job_id}"
+            
+            # Try to find external apply button
+            try:
+                apply_button = WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((
+                        By.CSS_SELECTOR, 
+                        "button.jobs-apply-button[data-job-url]"
+                    ))
+                )
+                external_url = apply_button.get_attribute('data-job-url')
+                if external_url:
+                    return external_url
+            except TimeoutException:
+                pass  # Continue to next method if external button not found
+            
+            # If no external URL, try to get the job ID from the page
+            try:
+                # Look for the job ID in various places
+                job_container = self.driver.find_element(
+                    By.CSS_SELECTOR, 
+                    "div.jobs-search__job-details--container"
+                )
+                job_id = job_container.get_attribute('data-job-id')
+                if job_id:
+                    return f"https://www.linkedin.com/jobs/view/{job_id}"
+            except NoSuchElementException:
+                pass
+            
+            # If still no URL, try to get from current page elements
+            try:
+                apply_section = self.driver.find_element(
+                    By.CSS_SELECTOR, 
+                    ".jobs-apply-button--top-card"
+                )
+                apply_link = apply_section.find_element(
+                    By.CSS_SELECTOR, 
+                    "[role='link']"
+                )
+                return apply_link.get_attribute('href')
+            except NoSuchElementException:
+                pass
+            
+            # If we still don't have a URL, return the current page URL
+            if 'jobs/view' in current_url:
+                return current_url
+            
+            return None
+            
         except Exception as e:
-            print(f"Could not get apply URL: {str(e)}")
-            apply_url = ""
-        return apply_url
+            print(f"Error getting apply URL: {str(e)}")
+            return None
 
     def safe_get_text(self, selector, parent=None):
         try:
@@ -479,7 +513,7 @@ class LinkedInJobScraper:
             job_details = {
                 'company_name': company_name,
                 'title': job_title,
-                'apply_url': apply_url
+                'apply_url': apply_url or 'LinkedIn Easy Apply (No direct URL available)'
             }
             
             # Format and send message
@@ -492,7 +526,7 @@ class LinkedInJobScraper:
             if apply_url:
                 print(f"Apply URL: {apply_url}")
             else:
-                print("Apply URL not found")
+                print("LinkedIn Easy Apply job (No direct URL)")
             print("-" * 50)
             return True
         
